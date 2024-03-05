@@ -42,7 +42,7 @@ We first take a sample from these data to speed up the runtime of some of the an
 
 ```{r}
 tweets <- tweets %>%
-  sample_n(20000)
+  sample_n(20000) #selects a random sample of size 20,000 from the data frame.
 ```
 
 ## Construct `dfm` object
@@ -59,8 +59,8 @@ docvars(tweets_corpus, "newspaper") <- tweets$user_username
 dfm_tweets <- dfm(tokens(tweets_corpus,
                     remove_punct = TRUE)) %>%
   dfm_select(pattern = stopwords("english"), 
-             selection = "remove",
-             valuetype = "fixed")
+             selection = "remove", #remove English stopwords from the dfm
+             valuetype = "fixed") #the values in the dfm will be fixed integers
 ```
 
 We can then have a look at the number of documents (tweets) we have per newspaper Twitter account. 
@@ -85,11 +85,13 @@ dfm_tweets
 Once we have our data in this format, we are able to group and trim the document feature matrix before estimating the wordfish model.
 
 ```{r}
-# compress the document-feature matrix at the newspaper level
+# compress the document-feature matrix at the newspaper level:generate a new dfm named dfm_newsteweets grouping the original dataset dfm_tweets by "newspaper" -- to aggregate the word counts across all tweets from each newspaper separately.
 dfm_newstweets <- dfm_group(dfm_tweets, groups = newspaper)
-# remove words not used by two or more newspapers
+
+# remove words not used by two or more newspapers:removes words that appear in fewer than two tweets -- trims the dfm based on document frequency.
 dfm_newstweets <- dfm_trim(dfm_newstweets, 
                                 min_docfreq = 2, docfreq_type = "count")
+
 
 ## size of the document-feature matrix
 dim(dfm_newstweets)
@@ -97,7 +99,9 @@ dim(dfm_newstweets)
 #### estimate the Wordfish model ####
 set.seed(123L)
 dfm_newstweets_results <- textmodel_wordfish(dfm_newstweets, 
-                                             sparse = TRUE)
+                                             sparse = TRUE) #specifies that the matrix is in sparse format
+#textmodel_wordfish(): used to fit a Wordfish model to the input document-feature matrix, which is used for analyzing the ideological positioning of tweets based on the language used.
+
 
 ```
 
@@ -135,10 +139,11 @@ feat_betas <- as.data.frame(cbind(features, betas))
 feat_betas$betas <- as.numeric(feat_betas$betas)
 
 feat_betas %>%
-  arrange(desc(betas)) %>%
-  top_n(20) %>% 
-  kbl() %>%
-  kable_styling(bootstrap_options = "striped")
+  arrange(desc(betas)) %>%  #arrange in descending order 
+  top_n(20) %>%             #selects the top 20 rows 
+  kbl() %>%                 #converts the resulting data frame into a "knitr" table
+  kable_styling(bootstrap_options = "striped") #adds striped rows to the table using Bootstrap styling options
+
 
 ```
 
@@ -172,4 +177,40 @@ dim(kaneko_dfm_study1)
 ## Exercises
 
 1. Estimate a wordfish model for the @kaneko_estimating_2021 data
+```{r}
+#### estimate the Wordfish model ####
+set.seed(123L)
+kaneko_dfm_results <- textmodel_wordfish(kaneko_dfm_study1, 
+                                             sparse = TRUE) #specifies that the matrix is in sparse format
+summary(kaneko_dfm_results)
+```
+
 2. Visualize the results
+```{r}
+#get the estimates of the latent newspaper position
+textplot_scale1d(kaneko_dfm_results)
+```
+The estimated scores got by newspaper are grouped by the influential power in Japan. Specifically, Most newspapers with high levels of influential power in Japan have a similarly high estimated scores at the right hand side of this latent dimension,except the Asahi, Which is a leading newspaper but got an approximately -1 value. However, the tabloid newspapers got relatively lower estimated scores at the left hand side of this latent dimension.
+
+```{r}
+#plot the word-level beta
+textplot_scale1d(kaneko_dfm_results, margin = "features")
+```
+
+```{r}
+
+feature <- kaneko_dfm_results[["features"]]
+
+beta <- kaneko_dfm_results[["beta"]]
+
+feat_beta <- as.data.frame(cbind(feature, beta))
+feat_beta$beta <- as.numeric(feat_beta$beta)
+
+feat_beta %>%
+  arrange(desc(beta)) %>%  #arrange in descending order 
+  top_n(20) %>%             #selects the top 20 rows 
+  kbl() %>%                 #converts the resulting data frame into a "knitr" table
+  kable_styling(bootstrap_options = "striped") #adds striped rows to the table using Bootstrap styling options
+
+```
+
